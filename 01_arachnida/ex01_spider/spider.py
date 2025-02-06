@@ -30,7 +30,7 @@ def normalize_url(img_url: str,
     if query_idx != -1:
         img_url = img_url[:query_idx]
 
-    absolute_url = urljoin(page_url, img_url)
+    absolute_url = urljoin(page_url, img_url).lower()
 
     extension = absolute_url[absolute_url.rfind('.'):]
     if not absolute_url.endswith(file_exts):
