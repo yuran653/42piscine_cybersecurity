@@ -1,43 +1,93 @@
 import click
 import requests
+import base64
+import datetime
+import binascii
 from pathlib import Path
 from bs4 import BeautifulSoup
+from urllib.parse import urljoin
 
 
+def save_to_file(path: Path, content: bytes) -> bool:
 
-def normalize_url(img_url: str, page_url: str) -> str:
+    if Path(path).exists():
+        print(f'\033[33mWARNING: Image already exists:\033[0m {path}')
+        return False
+    
+    else:
+        with open(path, 'wb') as file:
+            file.write(content)
+
+    return True
+            
+
+def normalize_url(img_url: str,
+                  page_url: str,
+                  file_exts: tuple
+                  ) -> str:
 
     query_idx = img_url.find('?')
     if query_idx != -1:
         img_url = img_url[:query_idx]
 
-    img_url = img_url.lstrip('/')
+    absolute_url = urljoin(page_url, img_url)
 
-    if not img_url.startswith('https://'):
-        print(img_url)
-        print(img_url[:img_url.find('/')].rfind('.'))
-        if img_url.startswith(page_url[8:-1]):
-            img_url = 'https://' + img_url
-        # elif img_url[:img_url.find('/')].
-        else:
-            img_url = page_url + img_url
-
-    return img_url
+    extension = absolute_url[absolute_url.rfind('.'):]
+    if not absolute_url.endswith(file_exts):
+        print(f"\033[33mWARNING: Extension '{extension[1:]}' is not supported\033[0m")
+        return None
+    
+    return absolute_url
 
 
-def save_image(url: str, path: Path) -> None:
-    # print(url)
+def save_image(img_url: str,
+               page_url: str,
+               path: Path,
+               file_exts=('.jpg', '.jpeg', '.png', '.gif', '.bmp')
+               ) -> None:
+    
+    normalized_url = normalize_url(img_url, page_url, file_exts)
+    if normalized_url == None:
+        return
+    
     try:
-        img_response = requests.get(url)
+        img_response = requests.get(normalized_url)
+        img_response.status_code
         img_response.raise_for_status()
         img_path = path/Path(img_response.url).name
-        with open(img_path, 'wb') as file:
-            file.write(img_response.content)
-        print(f'\033[32mDownloaded:\33[0m {url} -> {img_path}')
-    except Exception as e:
-        print(f'\033[31mSave image error occurred:\033[0m {e}')
+
+        if save_to_file(img_path, img_response.content):
+            print(f'\033[32mDownloaded:\33[0m {normalized_url} -> {img_path}')
+
+    except requests.exceptions.RequestException as e:
+        print(f'\033[31mERROR: Save image error occurred:\033[0m {e}')
         return
-    pass
+
+
+def save_base64_image(img_base64: str,
+                      path: Path,
+                      file_types = ('jpg', 'jpeg', 'png', 'gif', 'bmp')
+                      ) -> None:
+    
+    file_type = img_base64[img_base64.find("/"):img_base64.find(";")].lower()
+
+    if  file_type[1:] in file_types:
+        now = datetime.datetime.now()
+        timestamp_str = now.strftime("%Y-%m-%d_%H:%M:%S.%f")
+        img_path = path / f'{timestamp_str}.{file_type[1:]}'
+
+        try:
+            img_base64 = img_base64.split(',', 1)[1]
+            img_data = base64.b64decode(img_base64)
+        except (binascii.Error, IndexError) as e:  
+            print(f"\033[31mERROR: Base64 decode failed: {e}\033[0m")  
+            return  
+
+        if save_to_file(img_path, img_data):
+            print(f'\033[32mDownloaded:\33[0m decoded base64 to image-> {img_path}')
+
+    else:
+        print(f"\033[33mWARNING: Extension '{file_type[1:]}' is not supported\033[0m")
 
 
 @click.command()
@@ -55,7 +105,7 @@ def spider(recursive: bool, depth: int, path: str, url: str) -> None:
     for images
     """
     if path == '':
-        print('Error: Path cannot be empty')
+        print('\033[33mWARNING: Path cannot be empty\033[0m')  
         return
     
     try:
@@ -73,7 +123,7 @@ def spider(recursive: bool, depth: int, path: str, url: str) -> None:
         page_response = requests.get(url)
         page_response.raise_for_status()
         if page_response.url.startswith('http://'):
-            print('The script does not work with insecure connections')
+            print('\033[33mWARNING: The script does not work with insecure connections\033[0m')
             return
     except requests.exceptions.RequestException as e:
         print(e)
@@ -82,16 +132,19 @@ def spider(recursive: bool, depth: int, path: str, url: str) -> None:
     try:
         soup = BeautifulSoup(page_response.content, 'html.parser')
         img_tags = soup.find_all('img', src=True)
-        img_urls = [img['src'] for img in img_tags]
+        img_urls = {img['src'] for img in img_tags}
     except (AttributeError, KeyError, TypeError) as e:
         print(e)
         return
     
-    # print(*img_urls, sep='\n\n')
-    
+
     for img_url in img_urls:
-        if img_url.startswith('data:image') == False:
-            save_image(normalize_url(img_url, page_response.url), dir)
+        print(f'\033[36mAttempt to download image at:\033[0m {img_url}')
+        if img_url.startswith('data:image') and ';base64' in img_url:
+            save_base64_image(img_url, dir)
+        else:
+            save_image(img_url, page_response.url, dir)
+            pass
 
 
 if __name__ == '__main__':
