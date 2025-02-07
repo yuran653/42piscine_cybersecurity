@@ -10,9 +10,11 @@ from urllib.parse import urljoin
 from collections import deque
 
 
-def save_to_file(path: Path, content: bytes) -> bool:
+def save_to_file(path: Path, content: bytes, saved_imgs: set) -> bool:
 
-    if Path(path).exists():
+    img_hash = get_img_hash(content)
+
+    if img_hash in saved_imgs or Path(path).exists():
         print(f'\033[33mWARNING: Image already exists:\033[0m {path}')
         return False
     
@@ -40,11 +42,16 @@ def normalize_url(img_url: str,
         return None
     
     return absolute_url
+    
+
+def get_img_hash(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
 
 
-def save_image(img_url: str,
+def save_img(img_url: str,
                page_url: str,
                path: Path,
+               saved_imgs: set,
                file_exts=('.jpg', '.jpeg', '.png', '.gif', '.bmp')
                ) -> None:
     
@@ -57,21 +64,17 @@ def save_image(img_url: str,
         img_response.raise_for_status()
         img_path = path/Path(img_response.url).name
 
-        if save_to_file(img_path, img_response.content):
+        if save_to_file(img_path, img_response.content, saved_imgs):
             print(f'\033[32mDownloaded:\33[0m {normalized_url} -> {img_path}')
 
     except requests.exceptions.RequestException as e:
         print(f'\033[31mERROR: Save image error occurred:\033[0m {e}')
         return
-    
-
-def get_image_hash(content: bytes) -> str:
-    return hashlib.sha256(content).hexdigest()
 
 
-def save_base64_image(img_base64: str,
+def save_base64_img(img_base64: str,
                       path: Path,
-                      saved_base64: set,
+                      saved_imgs: set,
                       file_types = ('jpg', 'jpeg', 'png', 'gif', 'bmp')
                       ) -> None:
     
@@ -85,23 +88,19 @@ def save_base64_image(img_base64: str,
         try:
             img_base64 = img_base64.split(',', 1)[1]
             img_data = base64.b64decode(img_base64)
-            img_hash = get_image_hash(img_data)
-            if img_hash in saved_base64:
-                print(f'\033[33mWARNING: Image already exists:\033[0m {img_path}')
-                return
+        
+            if save_to_file(img_path, img_data, saved_imgs):
+                print(f'\033[32mDownloaded:\33[0m decoded base64 to image-> {img_path}')
+
         except (binascii.Error, IndexError) as e:  
             print(f"\033[31mERROR: Base64 decode failed: {e}\033[0m")  
             return  
-
-        if save_to_file(img_path, img_data):
-            saved_base64.add(img_hash)
-            print(f'\033[32mDownloaded:\33[0m decoded base64 to image-> {img_path}')
-
+        
     else:
         print(f"\033[33mWARNING: Extension '{file_type[1:]}' is not supported\033[0m")
 
 
-def fetch_imgs(page_response: requests.Response, dir: Path, saved_base64: set) -> None:
+def fetch_imgs(page_response: requests.Response, dir: Path, saved_imgs: set) -> None:
 
     try:
         soup = BeautifulSoup(page_response.content, 'html.parser')
@@ -115,9 +114,9 @@ def fetch_imgs(page_response: requests.Response, dir: Path, saved_base64: set) -
         for img_url in img_urls:
             print(f'\033[36mAttempt to download image at:\033[0m {img_url}')
             if img_url.startswith('data:image') and ';base64' in img_url:
-                save_base64_image(img_url, dir, saved_base64)
+                save_base64_img(img_url, dir, saved_imgs)
             else:
-                save_image(img_url, page_response.url, dir)
+                save_img(img_url, page_response.url, dir, saved_imgs)
 
 
 def fetch_urls(page_response: requests.Response, base_url: str) -> set:
@@ -182,7 +181,7 @@ def spider(recursive: bool, depth: int, path: str, url: str) -> None:
         return
     
     visited = {page_response.url}
-    saved_base64 = set()
+    saved_imgs = set()
     if recursive:
         urls = deque([(url, 1)])
         while urls:
@@ -194,7 +193,7 @@ def spider(recursive: bool, depth: int, path: str, url: str) -> None:
             if page_response is None:
                 continue
 
-            fetch_imgs(page_response, dir, saved_base64)
+            fetch_imgs(page_response, dir, saved_imgs)
 
             fetched_urls = fetch_urls(page_response, url)
             for fetched_url in fetched_urls:
@@ -203,7 +202,7 @@ def spider(recursive: bool, depth: int, path: str, url: str) -> None:
                     urls.append((fetched_url, current_depth + 1))
 
     else:
-        fetch_imgs(page_response, dir, saved_base64)
+        fetch_imgs(page_response, dir, saved_imgs)
 
 
 if __name__ == '__main__':
