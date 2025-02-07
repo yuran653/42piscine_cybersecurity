@@ -30,10 +30,10 @@ def normalize_url(img_url: str,
     if query_idx != -1:
         img_url = img_url[:query_idx]
 
-    absolute_url = urljoin(page_url, img_url).lower()
+    absolute_url = urljoin(page_url, img_url)
 
-    extension = absolute_url[absolute_url.rfind('.'):]
-    if not absolute_url.endswith(file_exts):
+    extension = absolute_url[absolute_url.rfind('.'):].lower()
+    if extension not in file_exts:
         print(f"\033[33mWARNING: Extension '{extension[1:]}' is not supported\033[0m")
         return None
     
@@ -52,7 +52,7 @@ def save_image(img_url: str,
     
     try:
         img_response = requests.get(normalized_url)
-        img_response.status_code
+        print(f'RESPONSE STATUS: {img_response.status_code}')
         img_response.raise_for_status()
         img_path = path/Path(img_response.url).name
 
@@ -69,9 +69,9 @@ def save_base64_image(img_base64: str,
                       file_types = ('jpg', 'jpeg', 'png', 'gif', 'bmp')
                       ) -> None:
     
-    file_type = img_base64[img_base64.find("/"):img_base64.find(";")].lower()
+    file_type = img_base64[img_base64.find("/"):img_base64.find(";")]
 
-    if  file_type[1:] in file_types:
+    if  file_type[1:].lower() in file_types:
         now = datetime.datetime.now()
         timestamp_str = now.strftime("%Y-%m-%d_%H:%M:%S.%f")
         img_path = path / f'{timestamp_str}.{file_type[1:]}'
