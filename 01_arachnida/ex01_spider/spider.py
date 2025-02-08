@@ -150,17 +150,13 @@ def fetch_page(url: str) -> requests.Response:
 @click.option('-l', '--depth', default=5,
               help='Sets the maximum recursion depth when -r is active')
 @click.option('-p', '--path', default='./data',
-              help='Specifies the directory to store downloaded images')
+              help='Speciffrom PIL.ExifTags import TAGS, GPSTAGS')
 @click.argument('url', type=str, required=True)
 def spider(recursive: bool, depth: int, path: str, url: str) -> None:
     """
     URL - the mandatory argument that sets the target website to scrape
     for images
-    """
-    if path == '':
-        print('\033[33mWARNING: Path cannot be empty\033[0m')  
-        return
-    
+    """    
     if depth < 1:
         print('\033[33mWARNING: Depth cannot be less than 1\033[0m')  
         return
