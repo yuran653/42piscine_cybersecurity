@@ -2,6 +2,8 @@
 file_names.txt
 non_supported.txt
 links.txt
+key.*
+*.key
 
 # Images
 *jpg
