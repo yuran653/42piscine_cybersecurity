@@ -17,9 +17,6 @@ from Crypto.Cipher import AES
 RED = "\033[31m"
 GREEN = "\033[32m"
 YELLOW = "\033[33m"
-BLUE = "\033[34m"
-MAGENTA = "\033[35m"
-CYAN = "\033[36m"
 RESET = "\033[0m"
 
 
@@ -176,7 +173,8 @@ def generate_key(path: str) -> None:
         #    - Converts binary data to ASCII-safe format
         #    - Makes it suitable for file storage
         #    Example: b'\x01\x02\x03' -> 'AQID'
-        file.write(base64.b64encode(encrypted))
+        encoded_base64 = base64.b64encode(encrypted)
+        file.write(encoded_base64)
 
     print(f"{GREEN}Key was successfully saved in 'ft_otp.key'{RESET}")
 
