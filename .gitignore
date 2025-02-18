@@ -4,6 +4,7 @@ non_supported.txt
 links.txt
 key.*
 *.key
+ft_onion_key
 
 # Images
 *jpg
