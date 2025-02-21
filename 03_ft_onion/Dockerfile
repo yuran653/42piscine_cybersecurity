@@ -10,8 +10,7 @@ RUN ssh-keygen -A && \
     ssh-keygen -t ed25519 -f /root/.ssh/ft_onion_key -N "" && \
     cp /root/.ssh/ft_onion_key.pub /root/.ssh/authorized_keys && \
     chmod 700 /root/.ssh && \
-    chmod 600 /root/.ssh/ft_onion_key && \
-    chmod 644 /root/.ssh/authorized_keys
+    chmod 600 /root/.ssh/ft_onion_key
 COPY sshd_config /etc/ssh/sshd_config
 
 # Tor config

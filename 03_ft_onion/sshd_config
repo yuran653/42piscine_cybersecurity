@@ -1,4 +1,3 @@
-ListenAddress 0.0.0.0:42424
 Port 42424
 PermitRootLogin prohibit-password
 AuthorizedKeysFile	.ssh/authorized_keys
